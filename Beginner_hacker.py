@@ -1,37 +1,42 @@
-from random import seed, shuffle
-from Crypto.Util.number import bytes_to_long
+'''
+from random import randint as ri
 
-def decrypt(ciphertext, key):
-    decrypted = bytearray([ciphertext[i] ^ key[i % len(key)] for i in range(len(ciphertext))])
-    return decrypted
+def encrypt(plaintext, key):
+    ciphertext = bytearray([plaintext[i] ^ key[i%len(key)] for i in range(len(plaintext))])
+    return ciphertext
 
-# Encrypted flag received from the encryption process
-enc = b'\x9e\xddO\xd2\xc3\xddG\xd8\\\xc5\\\xd0\x97\xa2]\xd9\xdd\xc0D\xd9\\\xf3I\xe7L'
+flag = b"shellmates{redacted}"
+assert len(flag)%13==0
+mykey = bytearray([ri(0, 255) for _ in range(13)])  
+enc = encrypt(flag, mykey)
+print(enc)
+'''
+enc = b'\x1c62\x8f|i\x9a\xadw\xba\x06N\x85\x08+d\xb0C[\xa9\xed|\x8dM\x12\xb4\\\r$\xbct4\x9e\xaaM\x872\x0b\x85.\x12\x00\xa2iW\xa4\xb4W\xfd3 \xa3\x00\x0b\x08\xb1O \x9e\x9ag\xbbN^\xa7'
+def extract_key(ciphertext, key_length, known_prefix):
+    key = bytearray(b'\x00' * key_length)  # Initialize the key with null bytes
 
-# Known parts of the original and shuffled flags
-known_original = "shellmates{"
-known_shuffled = "shellmates{"
+    for i in range(len(known_prefix)):
+        key[i % key_length] = known_prefix[i] ^ ciphertext[i]
+    key[12] = ord(b'}') ^ ciphertext[-1]
+    key[11] = ord(b'1') ^ ciphertext[11]
 
-# Extract the known parts of the original and shuffled flags
-original_flag = "shellmates{redacted}"
-shuffled_flag = "shellmates{abcdefg}"  # Replace with the actual shuffled flag
+    return key
 
-# XOR the known parts to obtain a partial key
-partial_key = bytearray([ord(original_char) ^ ord(shuffled_char) for original_char, shuffled_char in zip(known_original, known_shuffled)])
+def multibyte_xor_decrypt(ciphertext, key_length, known_prefix):
+    key = extract_key(ciphertext, key_length, known_prefix)
+    decrypted = bytearray()
 
-# Complete the key by appending the remaining random bytes
-mykey = partial_key + bytearray([0] * (12 - len(partial_key)))
+    for i in range(len(ciphertext)):
+        decrypted_byte = ciphertext[i] ^ key[i % key_length]
+        decrypted.append(decrypted_byte)
 
-# Decrypt the ciphertext
-decrypted_flag = decrypt(enc, mykey)
+    return bytes(decrypted), key
 
-# Unshuffle the decrypted flag
-seed(bytes_to_long(mykey))
-shuffled_list = list(decrypted_flag.decode()[11:-1])
-shuffle(shuffled_list)
-rest_of_the_flag = "".join(shuffled_list)
+# Example usage:
+key_length = 13  # Replace with your known key length
+known_prefix = b'shellmates{'  # Replace with your known prefix
 
-# Combine the known and recovered parts to get the original flag
-original_flag = known_original + rest_of_the_flag
+decrypted_data, key = multibyte_xor_decrypt(enc, key_length, known_prefix)
 
-print("Decrypted Flag:", original_flag)
+print("Decrypted Data:", decrypted_data)
+print("Key:", key)
